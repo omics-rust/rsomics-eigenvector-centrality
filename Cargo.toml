@@ -1,0 +1,26 @@
+[package]
+name = "rsomics-eigenvector-centrality"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.91"
+description = "Eigenvector centrality of undirected graphs (power-iteration, value-exact vs networkx)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/omics-rust/rsomics-eigenvector-centrality"
+keywords = ["bioinformatics", "graph", "centrality"]
+categories = ["science", "command-line-utilities"]
+
+[[bin]]
+name = "rsomics-eigenvector-centrality"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "eigenvector"
+harness = false
