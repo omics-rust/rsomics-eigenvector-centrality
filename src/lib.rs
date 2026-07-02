@@ -3,7 +3,9 @@ use std::collections::HashMap;
 /// Adjacency list preserving node and neighbor insertion order,
 /// mirroring `nx.read_edgelist → Graph` semantics.
 ///
-/// Parallel edges are silently deduplicated (undirected-set).
+/// Parallel edges are silently deduplicated (undirected-set). A self-loop
+/// is kept as a single self-neighbour, matching networkx `G[n]` iteration:
+/// it contributes one diagonal term to the power iteration.
 pub struct Graph {
     node_ids: HashMap<String, usize>,
     nodes: Vec<String>,
@@ -35,7 +37,9 @@ impl Graph {
         let uid = self.intern(u);
         let vid = self.intern(v);
         if uid == vid {
-            // self-loops don't participate in undirected eigenvector centrality
+            if !self.adj[uid].contains(&uid) {
+                self.adj[uid].push(uid);
+            }
             return;
         }
         if !self.adj[uid].contains(&vid) {

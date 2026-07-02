@@ -5,7 +5,7 @@
 /// Goldens obtained by running `networkx.eigenvector_centrality` with
 /// max_iter=100, tol=1e-6, nstart=None (all-ones) on each graph and
 /// printing `{v:.17e}` for each node in lexicographic order.
-/// Oracle: /opt/homebrew/Caskroom/miniforge/base/envs/scanpy/bin/python3
+/// Oracle: networkx 3.6.1 (miniforge rs-up env).
 use rsomics_eigenvector_centrality::{eigenvector_centrality, parse_edgelist};
 
 fn worst_abs_err(got: &[f64], expected: &[f64]) -> f64 {
@@ -192,6 +192,66 @@ fn random_g20_50_seed42() {
         worst = worst.max(err);
     }
     assert!(worst < 1e-12, "G20 worst abs err {worst:.3e} exceeds 1e-12");
+}
+
+/// Hub self-loop: node 0 links 1 and 2 and carries a self-loop.
+/// networkx keeps the self-loop (`G[0]` includes 0), so it adds a diagonal
+/// term A[0][0]=1 — the hub is boosted relative to the no-self-loop star.
+/// networkx output (lex order 0,1,2):
+///   0  8.16496580927726145e-01
+///   1  4.08248290463862962e-01
+///   2  4.08248290463862962e-01
+#[test]
+fn hub_self_loop() {
+    let g = parse_edgelist("0 1\n0 2\n0 0\n");
+    let c = eigenvector_centrality(&g, 100, 1e-6).unwrap();
+
+    // Nodes inserted in order: 0,1,2
+    let expected = [
+        8.16496580927726145e-01_f64,
+        4.08248290463862962e-01_f64,
+        4.08248290463862962e-01_f64,
+    ];
+    let err = worst_abs_err(&c, &expected);
+    assert!(
+        err < 1e-12,
+        "hub self-loop worst abs err {err:.3e} exceeds 1e-12\ngot:      {c:?}\nexpected: {expected:?}"
+    );
+}
+
+/// Leaf self-loop: path 0-1-2 with a self-loop on the terminal node 2.
+/// The self-loop lifts the leaf above its unweighted path value.
+/// networkx output (lex order 0,1,2):
+///   0  3.27986682781174543e-01
+///   1  5.91009673867220697e-01
+///   2  7.36975102234507462e-01
+#[test]
+fn leaf_self_loop() {
+    let g = parse_edgelist("0 1\n1 2\n2 2\n");
+    let c = eigenvector_centrality(&g, 100, 1e-6).unwrap();
+
+    // Nodes inserted in order: 0,1,2
+    let expected = [
+        3.27986682781174543e-01_f64,
+        5.91009673867220697e-01_f64,
+        7.36975102234507462e-01_f64,
+    ];
+    let err = worst_abs_err(&c, &expected);
+    assert!(
+        err < 1e-12,
+        "leaf self-loop worst abs err {err:.3e} exceeds 1e-12\ngot:      {c:?}\nexpected: {expected:?}"
+    );
+}
+
+/// A repeated self-loop edge collapses to a single self-neighbour.
+#[test]
+fn self_loop_dedup() {
+    let g1 = parse_edgelist("0 1\n0 2\n0 0\n0 0\n");
+    let g2 = parse_edgelist("0 1\n0 2\n0 0\n");
+    let c1 = eigenvector_centrality(&g1, 100, 1e-6).unwrap();
+    let c2 = eigenvector_centrality(&g2, 100, 1e-6).unwrap();
+    let err = worst_abs_err(&c1, &c2);
+    assert!(err < 1e-15, "self-loop dedup err {err:.3e}");
 }
 
 /// Verify comment and blank line skipping in the parser.
