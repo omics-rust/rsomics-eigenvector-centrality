@@ -149,8 +149,9 @@ pub fn format_scientific(v: f64) -> String {
 pub fn parse_edgelist(s: &str) -> Graph {
     let mut g = Graph::new();
     for line in s.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
+        // nx.parse_edgelist strips a '#' comment anywhere in the line before tokenising.
+        let line = line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
             continue;
         }
         let mut parts = line.split_whitespace();
@@ -163,7 +164,21 @@ pub fn parse_edgelist(s: &str) -> Graph {
 
 #[cfg(test)]
 mod tests {
-    use super::format_scientific;
+    use super::{eigenvector_centrality, format_scientific, parse_edgelist};
+    use std::collections::HashMap;
+
+    fn centrality_by_name(s: &str) -> HashMap<String, f64> {
+        let g = parse_edgelist(s);
+        let x = eigenvector_centrality(&g, 1000, 1e-6).unwrap();
+        g.node_names().iter().cloned().zip(x).collect()
+    }
+
+    #[test]
+    fn inline_hash_comment_matches_stripped() {
+        let with_inline = centrality_by_name("0 1\n1 2#c\n2 3\n0 #x\n");
+        let plain = centrality_by_name("0 1\n1 2\n2 3\n");
+        assert_eq!(with_inline, plain);
+    }
 
     #[test]
     fn scientific_matches_python() {
